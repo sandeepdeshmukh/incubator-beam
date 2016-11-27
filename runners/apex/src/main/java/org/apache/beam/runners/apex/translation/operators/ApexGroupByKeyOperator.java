@@ -95,8 +95,8 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
   private final SerializablePipelineOptions serializedOptions;
   @Bind(JavaSerializer.class)
   private final StateInternalsFactory<K> stateInternalsFactory;
-  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new HashMap<>();
-  private Map<ByteBuffer, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
+  private transient Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new HashMap<>();
+  private transient Map<ByteBuffer, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
 
   private transient ProcessContext context;
   private transient OldDoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> fn;
