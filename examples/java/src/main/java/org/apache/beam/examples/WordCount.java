@@ -18,7 +18,10 @@
 package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.hdfs.HDFSFileSink;
+import org.apache.beam.sdk.io.hdfs.HDFSFileSource;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -27,13 +30,16 @@ import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
@@ -107,6 +113,22 @@ public class WordCount {
     }
   }
 
+
+  /**
+   * A simple function that outputs the value
+   *
+   */
+
+  static class ExtractString extends DoFn<KV<LongWritable, Text>, String>
+  {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception
+    {
+      c.output(c.element().getValue().toString());
+    }
+  }
+
+
   /** A SimpleFunction that converts a Word and Count into a printable string. */
   public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
     @Override
@@ -176,11 +198,18 @@ public class WordCount {
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
-    p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
-     .apply(new CountWords())
-     .apply(MapElements.via(new FormatAsTextFn()))
-     .apply("WriteCounts", TextIO.Write.to(options.getOutput()));
+//    p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
+//     .apply(new CountWords())
+//     .apply(MapElements.via(new FormatAsTextFn()))
+//     .apply("WriteCounts", TextIO.Write.to(options.getOutput()));
 
-    p.run().waitUntilFinish();
+      p.apply("ReadFromHDFS",
+          Read.from(
+              HDFSFileSource.from(options.getInputFile(), TextInputFormat.class, LongWritable.class, Text.class)))
+      .apply("ExtractPayload", ParDo.of(new ExtractString()))
+      .apply(new CountWords())
+      .apply("WriteToHDFS", Write.to(new HDFSFileSink(options.getOutput(), TextOutputFormat.class)).withNumShards(1));
+
+      p.run().waitUntilFinish();
   }
 }
