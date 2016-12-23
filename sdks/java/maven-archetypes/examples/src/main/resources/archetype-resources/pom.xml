@@ -148,6 +148,19 @@
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
+        <!-- Keep the dependency till there are no more conflicts with this version for other dependencies -->
+        <dependency>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+          <version>4.3.5</version>
+          <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>commons-codec</groupId>
+              <artifactId>commons-codec</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
       </dependencies>
     </profile>
 
